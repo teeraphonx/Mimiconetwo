@@ -17,12 +17,12 @@ app.use(express.json()); // ทำให้อ่าน JSON ที่ส่ง�
 // 
 //      **สำคัญ: ใส่ IP ของ VM 1 (เครื่อง Database) ตรงนี้**
 //
-const uri = "mongodb://172.16.0.4:27017";
+const uri = "mongodb://172.192.43.47:27017";
 //
 // ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️ ⬆️
 
 // ชื่อ Database (จาก Compass)
-const dbName = "MIMicGamingGear"; 
+const dbName = "MiMicGamingGear"; 
 
 const client = new MongoClient(uri);
 
