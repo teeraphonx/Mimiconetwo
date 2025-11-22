@@ -1,107 +1,82 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct, createStorefrontCheckout } from '@/lib/shopify';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import type { ApiProduct } from "@/lib/api";
 
 export interface CartItem {
-  product: ShopifyProduct;
-  variantId: string;
-  variantTitle: string;
-  price: {
-    amount: string;
-    currencyCode: string;
-  };
+  product: ApiProduct;
   quantity: number;
-  selectedOptions: Array<{
-    name: string;
-    value: string;
-  }>;
 }
 
 interface CartStore {
   items: CartItem[];
-  cartId: string | null;
-  checkoutUrl: string | null;
-  isLoading: boolean;
-  
-  addItem: (item: CartItem) => void;
-  updateQuantity: (variantId: string, quantity: number) => void;
-  removeItem: (variantId: string) => void;
+
+  addItem: (product: ApiProduct) => void;
+  removeItem: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  setCartId: (cartId: string) => void;
-  setCheckoutUrl: (url: string) => void;
-  setLoading: (loading: boolean) => void;
-  createCheckout: () => Promise<void>;
+
+  totalItems: number;
+  totalPrice: number;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      cartId: null,
-      checkoutUrl: null,
-      isLoading: false,
 
-      addItem: (item) => {
-        const { items } = get();
-        const existingItem = items.find(i => i.variantId === item.variantId);
-        
-        if (existingItem) {
+      addItem: (product) => {
+        const items = get().items;
+        const exist = items.find((i) => i.product._id === product._id);
+
+        if (exist) {
           set({
-            items: items.map(i =>
-              i.variantId === item.variantId
-                ? { ...i, quantity: i.quantity + item.quantity }
+            items: items.map((i) =>
+              i.product._id === product._id
+                ? { ...i, quantity: i.quantity + 1 }
                 : i
-            )
+            ),
           });
         } else {
-          set({ items: [...items, item] });
+          set({
+            items: [...items, { product, quantity: 1 }],
+          });
         }
       },
 
-      updateQuantity: (variantId, quantity) => {
+      removeItem: (id) => {
+        set({
+          items: get().items.filter((i) => i.product._id !== id),
+        });
+      },
+
+      updateQuantity: (id, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(variantId);
+          get().removeItem(id);
           return;
         }
-        
+
         set({
-          items: get().items.map(item =>
-            item.variantId === variantId ? { ...item, quantity } : item
-          )
+          items: get().items.map((i) =>
+            i.product._id === id ? { ...i, quantity } : i
+          ),
         });
       },
 
-      removeItem: (variantId) => {
-        set({
-          items: get().items.filter(item => item.variantId !== variantId)
-        });
+      clearCart: () => set({ items: [] }),
+
+      get totalItems() {
+        return get().items.reduce((sum, i) => sum + i.quantity, 0);
       },
 
-      clearCart: () => {
-        set({ items: [], cartId: null, checkoutUrl: null });
+      get totalPrice() {
+        return get().items.reduce(
+          (sum, i) => sum + i.product.price * i.quantity,
+          0
+        );
       },
-
-      setCartId: (cartId) => set({ cartId }),
-      setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl }),
-      setLoading: (isLoading) => set({ isLoading }),
-
-      createCheckout: async () => {
-        const { items, setLoading, setCheckoutUrl } = get();
-        if (items.length === 0) return;
-
-        setLoading(true);
-        try {
-          const checkoutUrl = await createStorefrontCheckout(items);
-          setCheckoutUrl(checkoutUrl);
-        } catch (error) {
-          console.error('Failed to create checkout:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
     }),
     {
-      name: 'shopify-cart',
+      name: "mimicgg-cart",
       storage: createJSONStorage(() => localStorage),
     }
   )
