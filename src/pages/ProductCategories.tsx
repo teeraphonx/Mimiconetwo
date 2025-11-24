@@ -13,11 +13,44 @@ const categories = [
 ];
 
 function matchCategory(product: ApiProduct, c?: string) {
-  const cat = product.category.toLowerCase();
-  if (c === "mousepads") return cat.includes("pad");
-  if (c === "mouse") return cat.includes("mouse") && !cat.includes("pad");
-  if (c === "mouse-feet") return cat.includes("feet") || cat.includes("skate");
-  if (c === "mouse-grips") return cat.includes("grip");
+  const cat = product.category.toLowerCase().trim();
+
+  // 🔥 Mousepads
+  if (c === "mousepads")
+    return (
+      cat.includes("pad") ||
+      cat.includes("mousepad") ||
+      cat.includes("mousepads")
+    );
+
+  // 🔥 Mouse
+  if (c === "mouse")
+    return (
+      cat === "mouse" ||
+      (cat.includes("mouse") &&
+        !cat.includes("feet") &&
+        !cat.includes("skate") &&
+        !cat.includes("grip") &&
+        !cat.includes("pad"))
+    );
+
+  // 🔥 Mouse Feet
+  if (c === "mouse-feet")
+    return (
+      cat.includes("feet") ||
+      cat.includes("skate") ||
+      cat.includes("mouse-feet") ||
+      cat.includes("mouse feet")
+    );
+
+  // 🔥 Mouse Grips
+  if (c === "mouse-grips")
+    return (
+      cat.includes("grip") ||
+      cat.includes("mouse-grip") ||
+      cat.includes("mouse grips")
+    );
+
   return true;
 }
 
@@ -29,8 +62,10 @@ export default function ProductCategories() {
 
   useEffect(() => {
     if (!categoryId) return;
+
     fetchProducts().then((items) => {
-      setProducts(items.filter((p) => matchCategory(p, categoryId)));
+      const filtered = items.filter((p) => matchCategory(p, categoryId));
+      setProducts(filtered);
       setLoading(false);
     });
   }, [categoryId]);
@@ -55,8 +90,15 @@ export default function ProductCategories() {
         {!loading && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {products.map((p) => (
-              <div key={p._id} onClick={() => navigate(`/product/${p["id-number"]}`)}>
-                <img src={p.image?.[0]} className="rounded-lg aspect-square w-full" />
+              <div
+                key={p._id}
+                onClick={() => navigate(`/product/${p["id-number"]}`)}
+                className="cursor-pointer"
+              >
+                <img
+                  src={p.image?.[0]}
+                  className="rounded-lg aspect-square w-full object-cover"
+                />
                 <h3 className="mt-2 text-sm font-semibold">{p.name}</h3>
                 <p className="text-sm">{p.price.toLocaleString()} ฿</p>
               </div>
