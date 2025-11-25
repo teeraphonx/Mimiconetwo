@@ -3,97 +3,174 @@ import { useEffect, useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShoppingCart, ArrowLeft } from "lucide-react";
+import { useCartStore } from "@/stores/cartStore";
+import { toast } from "sonner";
 import type { ApiProduct } from "@/lib/api";
 import { fetchProductById } from "@/lib/api";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
+
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(0);
 
-  const colors = ["Black", "White", "Pink"];
-  const [selectedColor, setSelectedColor] = useState("Black");
+  const addToCart = useCartStore((state) => state.addItem);
 
+  // Load product by ID (ApiProduct)
   useEffect(() => {
-    if (id) {
-      fetchProductById(id)
-        .then((res) => setProduct(res))
-        .finally(() => setLoading(false));
-    }
+    const loadProduct = async () => {
+      if (!id) return;
+
+      try {
+        const data = await fetchProductById(id);
+        setProduct(data);
+      } catch (error) {
+        console.error("Fetch Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProduct();
   }, [id]);
 
-  if (loading || !product) {
+  // Add to cart
+const handleAddToCart = () => {
+  if (!product) return;
+
+  addToCart(product); 
+
+  toast.success("Added to cart", {
+    description: `${product.name} x1 added to your cart`,
+    position: "top-center",
+  });
+};
+
+
+  // Loading Screen
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-xl">
-        Loading...
-      </div>
+      <>
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid md:grid-cols-2 gap-8">
+            <Skeleton className="aspect-square w-full" />
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-6 w-1/4" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
+
+  // Product Not Found
+  if (!product) {
+    return (
+      <>
+        <Navigation />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold mb-4">Product not found</h1>
+          <Link to="/">
+            <Button>Return Home</Button>
+          </Link>
+        </div>
+      </>
+    );
+  }
+
+  const images = product.image ?? [];
 
   return (
     <>
       <Navigation />
 
-      <div className="max-w-6xl mx-auto px-6 py-6">
-        <Link to="/" className="text-sm underline flex items-center mb-4">
-          ← Back to products
+      <div className="container mx-auto px-4 py-8">
+        {/* Back Button */}
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to products
         </Link>
 
         <div className="grid md:grid-cols-2 gap-10">
-          
-          {/* Image Smaller & Centered */}
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4">
-            <img
-              src={product.image?.[0]}
-              alt={product.name}
-              className="max-h-[350px] w-auto object-contain"
-            />
-          </div>
-
-          {/* Right Section */}
-          <div>
-            <h1 className="text-4xl font-bold mb-2">{product.name}</h1>
-            <Badge className="mb-4">{product.category}</Badge>
-
-            <p className="text-3xl font-bold mb-6">
-              {product.price.toLocaleString()} ฿
-            </p>
-
-            <div className="mb-4">
-              <h3 className="font-medium mb-2">Description</h3>
-              <p className="text-muted-foreground">{product.description}</p>
+          {/* LEFT — IMAGES */}
+          <div className="space-y-4">
+            {/* main image */}
+            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+              {images.length > 0 ? (
+                <img
+                  src={images[selectedImage]}
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <p className="text-center text-muted-foreground">No Image</p>
+              )}
             </div>
 
-            <div className="mb-6">
-              <h3 className="font-medium mb-2">Color</h3>
-              <div className="flex gap-2">
-                {colors.map((c) => (
+            {/* thumbnails */}
+            {images.length > 1 && (
+              <div className="grid grid-cols-4 gap-2">
+                {images.map((img, index) => (
                   <button
-                    key={c}
-                    onClick={() => setSelectedColor(c)}
-                    className={`px-4 py-1 rounded border ${
-                      selectedColor === c
-                        ? "bg-black text-white"
-                        : "bg-white text-black"
+                    key={index}
+                    onClick={() => setSelectedImage(index)}
+                    className={`aspect-square rounded-md overflow-hidden border-2 ${
+                      index === selectedImage
+                        ? "border-black"
+                        : "border-transparent"
                     }`}
                   >
-                    {c}
+                    <img
+                      src={img}
+                      alt={`image ${index}`}
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
 
-            <p className="text-sm mb-4">
+          {/* RIGHT — PRODUCT INFO */}
+          <div className="space-y-6">
+            <h1 className="text-4xl font-bold">{product.name}</h1>
+
+            <Badge className="mb-2">{product.category}</Badge>
+
+            <p className="text-3xl font-bold">{product.price.toLocaleString()} ฿</p>
+
+            {/* Description */}
+            {product.description && (
+              <div>
+                <h3 className="font-semibold mb-2">Description</h3>
+                <p className="text-muted-foreground">{product.description}</p>
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground">
               คงเหลือ {product.stock_quantity} ชิ้น
             </p>
 
-            <Button className="w-full py-6 text-lg">
-              Add to Cart
-            </Button>
+            {/* Add to Cart Button */}
+            <div className="space-y-3">
+              <Button size="lg" className="w-full gap-2" onClick={handleAddToCart}>
+                <ShoppingCart className="h-5 w-5" /> Add to Cart
+              </Button>
 
-            <p className="text-center text-sm text-muted-foreground mt-3">
-              Free shipping on orders over 500฿
-            </p>
+              <p className="text-sm text-center text-muted-foreground">
+                Free shipping on orders over 500฿
+              </p>
+            </div>
           </div>
         </div>
       </div>
