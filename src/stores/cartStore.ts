@@ -25,7 +25,7 @@ export const useCartStore = create<CartStore>()(
       items: [],
 
       addItem: (product) => {
-        const items = get().items;
+        const items = get().items ?? [];
         const exist = items.find((i) => i.product._id === product._id);
 
         if (exist) {
@@ -45,7 +45,9 @@ export const useCartStore = create<CartStore>()(
 
       removeItem: (id) => {
         set({
-          items: get().items.filter((i) => i.product._id !== id),
+          items: (get().items ?? []).filter(
+            (i) => i.product._id !== id
+          ),
         });
       },
 
@@ -56,7 +58,7 @@ export const useCartStore = create<CartStore>()(
         }
 
         set({
-          items: get().items.map((i) =>
+          items: (get().items ?? []).map((i) =>
             i.product._id === id ? { ...i, quantity } : i
           ),
         });
@@ -64,12 +66,16 @@ export const useCartStore = create<CartStore>()(
 
       clearCart: () => set({ items: [] }),
 
+      // ⭐ FIX: ทำเป็น getter ปลอดภัย 100%
       get totalItems() {
-        return get().items.reduce((sum, i) => sum + i.quantity, 0);
+        return (get().items ?? []).reduce(
+          (sum, i) => sum + i.quantity,
+          0
+        );
       },
 
       get totalPrice() {
-        return get().items.reduce(
+        return (get().items ?? []).reduce(
           (sum, i) => sum + i.product.price * i.quantity,
           0
         );
@@ -78,6 +84,15 @@ export const useCartStore = create<CartStore>()(
     {
       name: "mimicgg-cart",
       storage: createJSONStorage(() => localStorage),
+
+      // ⭐ ป้องกันข้อมูลเสียจาก version เก่า จน crash หน้าเว็บ
+      version: 2,
+      migrate: (persistedState: any, version) => {
+        if (!persistedState || version < 2) {
+          return { items: [] };
+        }
+        return persistedState;
+      },
     }
   )
 );
