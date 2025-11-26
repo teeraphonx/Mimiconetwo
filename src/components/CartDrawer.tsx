@@ -9,12 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  ShoppingCart,
-  Minus,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ShoppingCart, Minus, Plus, Trash2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 
 export const CartDrawer = () => {
@@ -27,19 +22,46 @@ export const CartDrawer = () => {
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
 
+  // ⭐ CHECKOUT ถูกต้อง & อยู่ใน async function
+  const checkout = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:3000/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            productId: i.product._id,
+            name: i.product.name,
+            price: i.product.price,
+            quantity: i.quantity,
+          })),
+          totalItems,
+          totalPrice,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("สั่งซื้อสำเร็จ!");
+        clearCart();
+        setIsOpen(false);
+      } else {
+        alert(data.message || "เกิดข้อผิดพลาดในการสั่งซื้อ");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+    }
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
           <ShoppingCart className="h-5 w-5" />
-
           {totalItems > 0 && (
-            <Badge className="
-                absolute -top-2 -right-2 
-                h-5 w-5 rounded-full 
-                p-0 flex items-center justify-center 
-                text-xs bg-accent text-accent-foreground
-            ">
+            <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-accent text-accent-foreground">
               {totalItems}
             </Badge>
           )}
@@ -65,10 +87,7 @@ export const CartDrawer = () => {
             <>
               <div className="flex-1 overflow-y-auto pr-2 min-h-0 space-y-4">
                 {items.map((item) => (
-                  <div
-                    key={item.product._id}
-                    className="flex gap-4 p-2 border rounded-lg"
-                  >
+                  <div key={item.product._id} className="flex gap-4 p-2 border rounded-lg">
                     <div className="w-16 h-16 bg-secondary rounded-md overflow-hidden">
                       {item.product.image?.[0] && (
                         <img
@@ -80,17 +99,9 @@ export const CartDrawer = () => {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">
-                        {item.product.name}
-                      </h4>
-
-                      <p className="text-sm text-muted-foreground truncate">
-                        {item.product.description}
-                      </p>
-
-                      <p className="font-semibold">
-                        {item.product.price.toLocaleString()} ฿
-                      </p>
+                      <h4 className="font-medium truncate">{item.product.name}</h4>
+                      <p className="text-sm text-muted-foreground truncate">{item.product.description}</p>
+                      <p className="font-semibold">{item.product.price.toLocaleString()} ฿</p>
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
@@ -136,16 +147,13 @@ export const CartDrawer = () => {
               <div className="border-t pt-4 space-y-4">
                 <div className="flex justify-between">
                   <span className="text-lg font-semibold">Total</span>
-                  <span className="text-xl font-bold">
-                    {totalPrice.toLocaleString()} ฿
-                  </span>
+                  <span className="text-xl font-bold">{totalPrice.toLocaleString()} ฿</span>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1" size="lg">
+                  <Button className="flex-1" size="lg" onClick={checkout}>
                     Checkout
                   </Button>
-
                   <Button variant="outline" onClick={clearCart}>
                     Clear
                   </Button>

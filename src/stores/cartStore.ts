@@ -19,6 +19,15 @@ interface CartStore {
   totalPrice: number;
 }
 
+const calculateTotals = (items: CartItem[]) => {
+  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+  const totalPrice = items.reduce(
+    (sum, i) => sum + i.product.price * i.quantity,
+    0
+  );
+  return { totalItems, totalPrice };
+};
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
@@ -28,70 +37,73 @@ export const useCartStore = create<CartStore>()(
         const items = get().items ?? [];
         const exist = items.find((i) => i.product._id === product._id);
 
+        let updatedItems;
+
         if (exist) {
-          set({
-            items: items.map((i) =>
-              i.product._id === product._id
-                ? { ...i, quantity: i.quantity + 1 }
-                : i
-            ),
-          });
+          updatedItems = items.map((i) =>
+            i.product._id === product._id
+              ? { ...i, quantity: i.quantity + 1 }
+              : i
+          );
         } else {
-          set({
-            items: [...items, { product, quantity: 1 }],
-          });
+          updatedItems = [...items, { product, quantity: 1 }];
         }
+
+        const totals = calculateTotals(updatedItems);
+
+        set({
+          items: updatedItems,
+          totalItems: totals.totalItems,
+          totalPrice: totals.totalPrice,
+        });
       },
 
       removeItem: (id) => {
+        const updatedItems = (get().items ?? []).filter(
+          (i) => i.product._id !== id
+        );
+
+        const totals = calculateTotals(updatedItems);
+
         set({
-          items: (get().items ?? []).filter(
-            (i) => i.product._id !== id
-          ),
+          items: updatedItems,
+          totalItems: totals.totalItems,
+          totalPrice: totals.totalPrice,
         });
       },
 
       updateQuantity: (id, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(id);
-          return;
+          return get().removeItem(id);
         }
 
+        const updatedItems = (get().items ?? []).map((i) =>
+          i.product._id === id ? { ...i, quantity } : i
+        );
+
+        const totals = calculateTotals(updatedItems);
+
         set({
-          items: (get().items ?? []).map((i) =>
-            i.product._id === id ? { ...i, quantity } : i
-          ),
+          items: updatedItems,
+          totalItems: totals.totalItems,
+          totalPrice: totals.totalPrice,
         });
       },
 
-      clearCart: () => set({ items: [] }),
-
-      // ⭐ FIX: ทำเป็น getter ปลอดภัย 100%
-      get totalItems() {
-        return (get().items ?? []).reduce(
-          (sum, i) => sum + i.quantity,
-          0
-        );
+      clearCart: () => {
+        set({ items: [], totalItems: 0, totalPrice: 0 });
       },
 
-      get totalPrice() {
-        return (get().items ?? []).reduce(
-          (sum, i) => sum + i.product.price * i.quantity,
-          0
-        );
-      },
+      totalItems: 0,
+      totalPrice: 0,
     }),
     {
       name: "mimicgg-cart",
       storage: createJSONStorage(() => localStorage),
-
-      // ⭐ ป้องกันข้อมูลเสียจาก version เก่า จน crash หน้าเว็บ
       version: 2,
-      migrate: (persistedState: any, version) => {
-        if (!persistedState || version < 2) {
-          return { items: [] };
-        }
-        return persistedState;
+      migrate: (persisted: any, version) => {
+        if (!persisted || version < 2) return { items: [], totalItems: 0, totalPrice: 0 };
+        return persisted;
       },
     }
   )
